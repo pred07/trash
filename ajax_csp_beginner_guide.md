@@ -177,11 +177,6 @@ xhr.send();
 
 **AJAX = Asynchronous JavaScript And XML**
 
-- **Asynchronous** = Runs in background without blocking page
-- **JavaScript** = The programming language
-- **And** = Just a connector word
-- **XML** = Old data format (now we use JSON instead)
-
 **The name is outdated, but the concept is everywhere.**
 
 ---
