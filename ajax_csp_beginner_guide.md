@@ -177,7 +177,6 @@ xhr.send();
 
 **AJAX = Asynchronous JavaScript And XML**
 
-**The name is outdated, but the concept is everywhere.**
 
 ---
 
