@@ -140,7 +140,12 @@ Following extensive user feedback and auditing, the tool now explicitly supports
 ### Telemetry & Analytics
 *   **Beacon API**: `navigator.sendBeacon()`.
 *   **Pixel Tracking**: `new Image().src` (Legacy/Advertising).
+
 *   **Tracking**: Used by Google Analytics, Adobe, New Relic.
+
+### Modern Dependency Resolution
+*   **CSS**: `@import` (Blocking network requests).
+*   **JavaScript**: ES6 `import ... from 'lib'` (Static Dependency).
 
 ## 6. False Positive Mitigation Strategy
 
@@ -150,7 +155,9 @@ To ensure report credibility, the tool employs a **Semantic Classification Engin
     *   `new XMLHttpRequest()` is counted as a **Construct** (0 Count).
     *   `.open()` is counted as a **Construct** (0 Count).
     *   `.send()` is counted as a **Logical Request** (1 Count).
+
     This prevents "Triple Counting" a single network call.
+    *   **Visibility**: The `AJAX_Detailed_Report` now includes an **`Is_Counted`** column (Yes/No) so auditors can explicitly verify which lines contributed to the metric.
     
 *   **Configuration Exclusion**:
     *   Global events (`ajaxStart`) and setup (`ajaxSetup`) are classified as **Events/Config** and do NOT inflate the "Total AJAX Calls" metric.
@@ -162,3 +169,19 @@ The following patterns are currently considered out of scope as they appear in <
 *   **Dynamic Script Injection**: Creating `<script>` tags purely via DOM manipulation for remote loading (`document.createElement('script')`). *Note: These are tracked under 'Dynamic JS' metrics but not counted as AJAX.*
 *   **GraphQL Clients**: Dedicated clients like Apollo/Relay (though their underlying `fetch` calls are usually detected).
 *   **Obfuscation**: Maliciously hidden calls like `window['f'+'etch']()` or `eval()`-hiding.
+
+## 8. CSS & JavaScript Pattern Detection
+The tool provides comprehensive coverage beyond AJAX, identifying complexity and modernization needs:
+
+### CSS Patterns Detected
+*   **Standard**: Inline (`style=`), Internal (`<style>`), External (`<link>`).
+*   **Modern**: `@import` rules (Blocking Network Request).
+*   **CSS-in-JS**: `styled.div`, `css\``, `styled(...)` (React/Vue patterns).
+*   **Dynamic**: `element.style.property`, `setAttribute('style')`, `cssText`, `insertRule`, `classList` (Indirect).
+
+### JavaScript Patterns Detected
+*   **Standard**: Inline Events (`onclick`), Internal Blocks (`<script>`), External Files (`src=`).
+*   **Modules**: ES6 Imports (`import x from 'y'`), CommonJS (`require`), AMD (`define`), and Dynamic Imports (`import()`).
+*   **Dynamic Execution**: `eval()`, `new Function()`, `setTimeout`/`setInterval` (string eval).
+*   **DOM Injection**: `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`.
+*   **Template Literals**: Detected coverage via `eval` matches (e.g., `eval(`)`).
