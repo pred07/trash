@@ -195,7 +195,34 @@ The output file will have the following structured tabs:
 
 ---
 
-## 5. Roadmap & Limitations (Accuracy Strategy)
+## 5. Phase 4: Accuracy Enhancements (Logic & Dependency Depth)
+
+To reach >90% refactoring accuracy, the system will implement these specific logic improvements:
+
+### 1. Logic Density Score (Prevent Useless Extraction)
+*   **Problem**: Extracting "Page Glue" (DOM selection, event binding) is wasteful.
+*   **Solution**: Calculate a score per block.
+    *   `+2`: Function declarations, Loops, Conditions.
+    *   `+1`: AJAX Calls.
+    *   `-2`: Only DOM selectors + Event Binding.
+*   **Impact**: Low-density blocks remain `INLINE` (marked as "Glue Code"). High-density blocks are candidates for `EXTRACTION`.
+
+### 2. Server Dependency Severity (Nuanced Blocking)
+*   **Problem**: Not all `@Model` usage is a blocker.
+*   **Solution**: Classify dependency types.
+    *   **Low (Cosmetic)**: `@ViewBag.Title`, `<%= Year %>` -> **Replaceable**.
+    *   **Medium (Config)**: `@Url.Action` -> **Needs API Config**.
+    *   **High (Logic)**: `@Model.UserId` inside logic -> **Backend Redesign**.
+
+### 3. Interactive Crawler Hints (Runtime Coverage)
+*   **Problem**: Crawler misses Admin panels or complex flows.
+*   **Solution**: Add "Interaction Hint" column to Crawler Input.
+    *   Example: `Login as Admin`, `Click 'Submit'`.
+    *   Allows manual/scripted extension of the crawler path.
+
+---
+
+## 6. Roadmap & Limitations
 
 While achieving 100% semantic accuracy requires tools like Babel or CodeQL, this utility prioritizes **Migration Velocity** (80/20 Rule).
 
