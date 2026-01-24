@@ -60,3 +60,22 @@ Use the generated `Refactoring_Assessment.xlsx` to prioritize work.
 1.  **Blocker Pass**: Address all "Blocked" items by building necessary Backend APIs.
 2.  **Rewrite Pass**: Tackle "Needs Rewrite" items, converting dynamic sinks to Components.
 3.  **Migration Pass**: Move "Ready" items and wire them up.
+
+---
+
+## 4. Optimized Crawling Strategy (The "Hybrid" Workflow)
+
+To reduce time and avoid "blindly" crawling thousands of pages, use **Static-Fed Crawling**.
+
+### Why this is better
+*   **Blind Crawling**: Slow, redundant (visits same links repeatedly), misses orphan pages.
+*   **Targeted Crawling**: Fast, 100% coverage of known assets.
+
+### The Workflow
+1.  **Inventory**: Run the Static Scanner (RepoScan) to get a list of all `.aspx`, `.html`, `.php` files.
+2.  **Transform**: Convert these file paths to Source URLs manually or via script.
+    *   Example: `C:\MyProject\Views\Admin\Users.aspx` -> `http://localhost/Admin/Users.aspx`
+3.  **Target**: Feed this specific list of URLs to the crawler with `Depth = 0`.
+    *   The crawler will visit each page *once*, verify dependencies (CSP/Scripts), and stop.
+
+This approach ensures you validate every page you own without wasting time spidering the web.
