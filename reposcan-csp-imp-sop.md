@@ -1,128 +1,165 @@
-# RepoScan CSP Implementation: Standard Operating Procedure (SOP)
+# CSP Integration Guide: Empowering Deployment with RepoScan
+
+**Target Audience:** Development Team, Security Leads, DevOps  
 **Version:** 1.0  
-**Target Audience:** Software Developers & Security Engineers  
-**Goal:** Achieve 100% Content Security Policy (CSP) Enforcement via Automated & Manual Refactoring.
+**Tools Required:** RepoScan Toolkit (Python 3.8+)
 
 ---
 
-## 1. Introduction & Objectives
-Content Security Policy (CSP) is the primary defense against Cross-Site Scripting (XSS). Implementing it on legacy applications is difficult because inline scripts and styles are blocked by default. 
+## Executive Summary
 
-The **RepoScan Toolkit** automates the identification and extraction of this code, allowing you to reach an "Enforced" state without breaking application functionality.
+This manual prescribes the standard operating procedure (SOP) for implementing Content Security Policy (CSP) using the **RepoScan** automated toolkit. 
 
----
-
-## 2. Prerequisites
-Before starting, ensure you have:
-*   **Python 3.8+** installed.
-*   **Pandas** library (`pip install pandas`).
-*   **Access to Source Code**: Ensure you have a backup of the original application, as the tool will create a refactored version.
+The CSP implementation is divided into **5 Phases** over **12 Weeks**. RepoScan automates the discovery, extraction, refactoring, and configuration generation, typically reducing manual effort by **60-70%**.
 
 ---
 
-## 3. Phase 1: Static Audit & Asset Mapping
-The goal is to understand the "Security Debt" of the application.
+## 🛠️ Tool Usage Overview
 
-### Step 1.1: Identify Vulnerabilities
-Run the `RepoScan-Analyser` to find every instance of inline code.
+| Utility | Command Script | Purpose |
+|---------|----------------|---------|
+| **Analyser** | `RepoScan-Analyser/main.py` | Scans codebase, inventories issues, detects external assets. |
+| **Tracker** | `refactoring_utility/progress_tracker.py` | Project management, dashboarding, and burndown charts. |
+| **Executor** | `refactoring_utility/batch_executor.py` | **The Workhorse**. Automates code modification (comments, extraction, nonces). |
+| **Generator** | `refactoring_utility/csp_generator.py` | Creates `web.config` headers and C# helper classes. |
+
+---
+
+## 📅 Phase 0: Diagnostic Scan (Day 1)
+
+**Objective:** Map the battlefield. Identify every line of code involving inline JS, CSS, or external calls.
+
+### 1. Run the Multi-Vector Analysis
+Execute the scanner against your application root. The `--all` flag ensures both static code analysis and dynamic crawling (for external assets like fonts/CDNs).
+
 ```powershell
-python RepoScan-Analyser/main.py --static --root "C:\Path\To\Your_App" --output "Output/Initial_Audit"
+python RepoScan-Analyser/main.py --all --root "C:\Path\To\Your\SourceCode" --url "http://localhost:5000" --output "Output/Scan_Results"
 ```
-*   **Action**: Open `Output/Initial_Audit/Code_Inventory.xlsx`.
-*   **What to check**: Review the **Summary** tab. Note the count of "Inline JS" and "Inline CSS". This is your work-list.
 
-### Step 1.2: Map External Domains
-Run the `repo_depth_analyser` to map every third-party URL (e.g., Google Fonts, Cloudflare).
+### 2. Initialize the Project Tracker
+Import the analysis results into a master tracking grid. This Excel file will be your "Source of Truth" for progress.
+
 ```powershell
-# Run the depth analysis tool from the scripts folder
-python scripts/repo_depth_analyser.py --root "C:\Path\To\Your_App"
+python refactoring_utility/progress_tracker.py --tracker "Output/CSP_Project_Tracker.xlsx" --import-analysis "Output/Scan_Results/Code_Inventory.xlsx"
 ```
-*   **Action**: Open the generated Excel report.
-*   **Importance**: These domains **must** be added to your CSP `script-src` and `style-src` whitelist.
+
+### 3. Deliverable Analysis
+Open `Output/Scan_Results/Code_Inventory.xlsx` and review:
+*   **Inline JS (Attributes):** Volume of `onclick`, `onload`. (Target: Phase 2)
+*   **Internal JS (Blocks):** Volume of `<script>` tags. (Target: Phase 3)
+*   **Dynamic_Analysis_Report.xlsx:** Check "Failed Resources" tab to see if any assets (fonts, images) are 404ing or need whitelisting.
 
 ---
 
-## 4. Phase 2: Automated Refactoring
-This phase physically removes code from HTML files and moves it to external files.
+## 📅 Phase 1: Baseline & Report-Only (Week 1-2)
 
-### Step 2.1: Attribute Tagging (Phase 1)
-Identifies every `onclick`, `onchange`, etc., and adds a marker for the developer.
+**Objective:** Deploy a "monitoring" policy that breaks nothing but logs violations.
+
+### 1. Generate Configuration
+Use the findings to generate a baseline policy that accounts for all observed external domains.
+
 ```powershell
-python refactoring_utility/batch_executor.py --mode apply --phase 1 --root "C:\Input_App" --output "C:\Refactored_App"
+python refactoring_utility/csp_generator.py --allowlist "Output/Scan_Results/Dynamic_Analysis_Report.xlsx" --output "Output/Config" --mode report-only
 ```
 
-### Step 2.2: Block Extraction (Phase 2)
-Automatically moves `<script>` and `<style>` blocks to the `/js` and `/css` directories.
+### 2. Integration
+1.  **Web Config:** Copy the `<add name="Content-Security-Policy-Report-Only" ... />` line from `Output/Config/web.config.report-only.xml` into your application's `web.config` inside the `<system.webServer> <httpProtocol> <customHeaders>` section.
+2.  **Violation Endpoint:** Ensure your app has a route or a listener (e.g., `/csp-violation-report`) to catch log entries sent by the browser.
+
+---
+
+## 📅 Phase 2: Refactor Attributes (Week 3-5)
+
+**Objective:** Eliminate "Easy Wins" (Inline `onclick`, `style` attributes). 
+*Note: The tool marks these locations; developers implement the logic files.*
+
+### 1. Run "Mark and Track"
+This command scans for attributes and inserts `<!-- TODO: [CSP] Refactor... -->` comments directly into the source code, and logs them to the changelog.
+
 ```powershell
-python refactoring_utility/batch_executor.py --mode apply --phase 2 --root "C:\Refactored_App" --output "C:\Refactored_App"
+# Dry Run (Preview changes without modifying files)
+python refactoring_utility/batch_executor.py --analysis "Output/Scan_Results/Code_Inventory.xlsx" --source "C:\Source" --output "Output/Refactored_Phase1" --mode dry-run --phase phase1_attributes
+
+# Apply (Modifies Code in the Output directory)
+python refactoring_utility/batch_executor.py --mode apply --phase phase1_attributes
 ```
-*   **Verification**: Check headers of your HTML files. You should see `<script src="/js/file_scriptblock_Lxx.js"></script>` instead of inline code.
+
+### 2. Developer Action (The "Human" Step)
+1.  Open `Output/Refactored_Phase1/refactoring_changelog.txt`.
+2.  Search for **"TODO COMMENT ADDED"** in your IDE.
+3.  **Refactoring Pattern:** Move the logic from the attribute to a central `event-handlers.js` file using event delegation.
+    *   *Example:* Change `<button onclick="doSomething()">` to `<button data-click="doSomething">`.
+4.  **Update Tracker:** Sync your manual changes back to the project tracker.
+    ```powershell
+    python refactoring_utility/progress_tracker.py --tracker "Output/CSP_Project_Tracker.xlsx" --update-changelog "Output/Refactored_Phase1/refactoring_changelog.txt"
+    ```
 
 ---
 
-## 5. Phase 3: Developer Implementation (Manual Hardening)
-The tool has done the heavy lifting. Now, the developer must implement the **Security Architecture**.
+## 📅 Phase 3: Automated Extraction (Week 6-8)
 
-### Step 3.1: Centralized Styles (`csp-styles.css`)
-1.  Create `public/Content/csp-styles.css`.
-2.  Search the project for `<!-- TODO: [CSP] Refactor inlinestyle ... -->`.
-3.  **Action**: Move the CSS to a class in `csp-styles.css` and apply the class to the HTML element.
-    *   *Example*: Replace `style="color:red"` with `class="text-danger"`.
+**Objective:** Extract `<script>` and `<style>` blocks to external files.
+*Note: The tool AUTOMATES this. It extracts the code to `.js` files and replaces the original block with a `<script src="...">` tag.*
 
-### Step 3.2: Centralized Event Delegation (`csp-helpers.js`)
-Instead of `onclick="func()"`, use "Data Attributes".
-1.  Create `public/Scripts/csp-helpers.js`.
-2.  Use the following template for delegation:
-```javascript
-document.addEventListener('click', (e) => {
-    const target = e.target.closest('[data-click]');
-    if (target) {
-        const fnName = target.getAttribute('data-click');
-        if (window[fnName]) window[fnName]();
-    }
-});
+### 1. Execute Extraction
+The tool intelligently skips blocks containing server-side dependencies like Razor (`@Model`) or ASP (`<%= %>`) to avoid breaking the build.
+
+```powershell
+python refactoring_utility/batch_executor.py --mode apply --phase phase2_safe_blocks --output "Output/Refactored_Phase2"
 ```
-3.  **Action**: Change `<li onclick="logout()">` to `<li data-click="logout">`.
+
+### 2. Developer Verification
+1.  **Check Blocked Items:** Review `refactoring_changelog.txt` for `[BLOCKED]` entries. These contained server-side logic and were left inline for safety.
+2.  **Verify Externalization:** Check the `extracted_code/` folder in your output. You should see files like `index_html_scriptblock_L50.js`.
+3.  **Path Resolution:** Ensure the newly created tags (e.g., `<script src="/js/...">`) align with your web server's static file routing.
 
 ---
 
-## 6. Phase 4: Dynamic Sink Remediation
-The tool identifies "Dynamic Code Sinks" (e.g., `innerHTML`, `eval`).
-*   **Action**: Scan results for `innerHTML`. 
-*   **Fix**: If you are just inserting text, change `.innerHTML = var` to `.textContent = var`. This prevents HTML injection even if your CSP is bypassed.
+## 📅 Phase 4: Nonce Injection (Week 9-10)
 
----
+**Objective:** Secure the remaining complex/legacy blocks that could not be safely extracted in Phase 3.
 
-## 7. Phase 5: Setting the Policy
-Now that the code is clean, implement the header.
+### 1. Install Helper Class
+Add the generated C# helper class to your solution to manage nonce generation per request.
+*   **Source:** `Output/Config/CspHelper.cs`
+*   **Action:** Copy to your `Utilities` or `App_Code` folder.
 
-### Step 5.1: Report-Only Mode (Testing)
-Add this to your `web.config` or server header:
-```xml
-<add name="Content-Security-Policy-Report-Only" 
-     value="default-src 'self'; script-src 'self' [WHITELISTED_DOMAINS];" />
+### 2. Inject Nonces
+Convert the "Blocked" scripts from Phase 3 into nonce-enabled scripts.
+
+```powershell
+python refactoring_utility/batch_executor.py --mode apply --phase phase3_nonces --output "Output/Refactored_Phase3"
 ```
-*   **Action**: Open the app in a browser. Press **F12** and check the **Console**.
-*   **Result**: If you see "CSP Violation" errors, it means you missed an inline attribute or a domain. Fix them before moving to Step 5.2.
 
-### Step 5.2: Enforcement Mode (Live)
-Once the console is clear of errors, change the header name from `Content-Security-Policy-Report-Only` to just `Content-Security-Policy`.
+*What this does:* It replaces `<script>` tags with `<script nonce="@CspHelper.GetNonce()">`. The CSP policy will now allow these specific inline scripts because they carry a cryptographically strong, single-use token.
 
 ---
 
-## 8. Phase 6: Final Verification
-Prove that the application is secure.
+## 📅 Phase 5: Enforcement (Week 11-12)
 
-1.  Run the `RepoScan-Analyser` one last time on the **Refactored** directory.
-2.  Open the final `Code_Inventory.xlsx`.
-3.  **The Goal**: The count for **Inline JS** and **Inline CSS** must be **0**.
+**Objective:** Flip the switch from monitoring to active protection.
+
+### 1. Generate Strict Config
+Regenerate the final, strict CSP configuration. This policy will no longer allow `unsafe-inline` or `unsafe-eval` unless nonced.
+
+```powershell
+python refactoring_utility/csp_generator.py --allowlist "Output/Scan_Results/Dynamic_Analysis_Report.xlsx" --output "Output/Config_Final" --mode enforcement
+```
+
+### 2. Final Deployment
+1.  **Switch Headers:** Replace the `Content-Security-Policy-Report-Only` header in `web.config` with the `Content-Security-Policy` header from `Output/Config_Final/web.config.enforcement.xml`.
+2.  **Final Audit:** Check the **Dashboard** in `Output/CSP_Project_Tracker.xlsx`. All items should be marked as "Completed" or "Nonced".
 
 ---
 
-## 9. Troubleshooting
-*   **App Breaks on Load**: Check if an extracted script had server-side tags (e.g., `<%= %>`). The tool excludes these by default, but manual verification is required.
-*   **CDNs blocked**: Ensure you ran Step 1.2. Many legacy apps call `ajax.googleapis.com` without the developer knowing.
+## ⚠️ Known Limitations & Developer Responsibilities
+
+1.  **Dependency Ordering:** While RepoScan extracts scripts, it cannot detect if `Script_A.js` requires a global variable from `Script_B.js`. Always verify the script load order in your layout file.
+2.  **Dynamic Strings:** JavaScript that constructs HTML strings via `.innerHTML = "..."` containing tags may still trigger CSP violations. These must be manually refactored to use `.textContent` or `document.createElement`.
+3.  **Third-Party Plugins**: Some older jQuery plugins inject styles directly into the DOM. These may require the addition of `'unsafe-inline'` to the `style-src` directive if they cannot be nonced.
 
 ---
-**Standard Operating Procedure Completed.**  
-*By following this workflow, you ensure a provable, auditable, and secure CSP implementation.*
+
+**Support & Documentation:**
+Detailed logs for every automated change are located in the `Output/refactoring_changelog.txt`.  
+For project burndown metrics, refer to the **Charts** tab in `CSP_Project_Tracker.xlsx`.
